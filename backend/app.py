@@ -10,18 +10,26 @@ app = Flask(__name__)
 mongo_client = MongoClient("mongo")
 db = mongo_client["CSE312_Project"]
 post_collection = db["Posts"]
-post_collection.insert_one({'use': 'counter', 'value': 0})
 
-@app.route("/")
-def index():
-    if request.cookies.get('token') and post_collection.find_one({"token": request.cookies.get('token')}):
-        user = post_collection.find_one({"token": request.cookies.get('token')})['username']
-        render_template("index.html", welcome = f"Welcomeback to React Post App, {user}")
+def escaped(input:str):
+    message = input.replace('&', "&amp;")
+    message = message.replace('<', "&lt;")
+    message = message.replace('>', "&gt;")
+    message = message.replace('"', "&quot;")
+    message = message.replace("'", "&#39;")
+    return message
+
+@app.route('/')
+def home():
+    if 'token' in request.cookies and post_collection.find_one({"token": hash(request.cookies['token'])}):
+        user = post_collection.find_one({"token": hash(request.cookies['token'])})['username']
+        user = escaped(user)
+        response = make_response(render_template("home.html", welcome = f"Welcomeback to React Post App, {user}"), 200)
     else:
-        render_template("index.html", welcome = "Welcome to React Post App" )
-    resp = app.send_static_file("index.html")
-    response = make_response(resp, 200)
+        response = make_response(render_template("home.html", welcome = "Welcome to React Post App" ), 200)
     response.headers = {'content-type': 'text/html; charset=UTF-8', 'x-content-type-options': 'nosniff'}
+    if post_collection.find_one({'counter': {'$exists': True}})==None:
+        post_collection.insert_one({'counter': 0})
     return response
 
 
@@ -67,44 +75,43 @@ def count():
 
     return response
 
-@app.route('/registration', method = 'POST')
+@app.route('/register', methods = ['POST'])
 def registration():
     username = request.form['username_reg']
     password = request.form['password_reg']
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password, salt)
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     post_collection.insert_one({'username': username, 'hashed': hashed})
-    render_template("message.html", response_message = "User Register")
-    resp = app.send_static_file("message.html")
-    response = make_response(resp, 200)
+    response = make_response(render_template("response.html", response_message = "User Register"), 200)
+    response.headers = {'content-type': 'text/html; charset=UTF-8', 'x-content-type-options': 'nosniff'}
     return response
 
-@app.route('/login', method = 'POST')
+@app.route('/login', methods = ['POST'])
 def login():
     username = request.form['username_login']
     password = request.form['password_login']
-    cflag = False
+    cookie_flage = True
     if post_collection.find_one({"username": username}):
         user = post_collection.find_one({"username": username})
         hashed = user['hashed']
-        if bcrypt.checkpw(password, hashed):
+        if bcrypt.checkpw(password.encode('utf-8'), hashed):
             token = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
             hashedtoken = hash(token)
             post_collection.update_one({"username": username}, {"$set": {"token": hashedtoken}})
-            render_template("message.html", response_message = "User Login")
-            cflag = True
+            response = make_response(render_template("response.html", response_message = "User Login"), 200)
+            response.set_cookie('token',token, max_age=3600,httponly=True)
+            response.headers['x-content-type-options'] = 'nosniff'
+            cookie_flage = False
         else:
-            render_template(index.html, response_message = "login Error")           
+            response = make_response(render_template("response.html", response_message = "login Error"), 200)        
     else:
-        render_template(index.html, response_message = "login Error")  
-
-    resp = app.send_static_file("message.html")
-    response = make_response(resp, 200)
+        response = make_response(render_template("response.html", response_message = "login Error"), 200)        
     
-    if cflag:
-        response.set_cookie('token', token, max_age=3600)
 
-    return response          
+    if cookie_flage:
+        response.headers = {'content-type': 'text/html; charset=UTF-8', 'x-content-type-options': 'nosniff'}
+    
+    return response                   
     
 
 
