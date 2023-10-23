@@ -4,6 +4,8 @@ WORKDIR /frontend
 
 COPY frontend/package*.json ./
 
+#RUN npm install antd --save
+
 RUN npm install
 
 COPY frontend/ ./
@@ -22,4 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --from=react-build /frontend/build /app/static
 
-CMD ["python", "app.py"]
+ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.2.1/wait /wait
+
+RUN chmod +x /wait
+
+CMD /wait && python3 -u app.py
