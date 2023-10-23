@@ -57,7 +57,7 @@ def like(user, postid):
         posts.update_one({'_id': ObjectId(postid)}, {"$inc": {"likes": 1}})
         return json.dumps({}), 200
     else:
-        return json.dumps({"message": "Please log in first"})
+        return json.dumps({"message": "Please log in first"}), 200
 
 
 @app.route('/setDislike/<string:user>/<string:postid>', methods=['POST'])
