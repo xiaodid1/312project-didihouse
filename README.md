@@ -9,6 +9,10 @@
 
 *Dashboard*: **http://localhost:8080/dashboard**
 
+***
+Sometime page will not be load corretlly if you laptop or pc is slow or having too many tasks on, please give it a few seconds to load
+***
+
 You will see two buttons `Login` and `Register` in */* page, each button will navigate you to direct page
 
 If you are navigating to *Dashboard* page without logging in you will see a welcome message, two buttons `Login` and `Register`, and a message telling you welcome to log in or register, you can also see posts if other users posted. But you are not able to **like** any posts.
@@ -17,10 +21,12 @@ If you are navigated to *Dashboard* page after/with logging in you will see a we
 
 After registering in *Register* page you will be navigating to *Login* page automaticlly
  - to register please fill in username, email, password, and confirm password
+ - if you entered a registered username or email the registeration will be fail
 
 After logging in in *Login* page you will be navigating to *Dashboard* page automaticlly
  - to login please fill in username, password
-
+ - if you entered a unmatch username and password login will fail
+ - if you entered a unregistered username login will fail and navigate to *Register* page automaticlly
 
 ## Testing:
 
