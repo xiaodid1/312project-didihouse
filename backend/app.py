@@ -1,36 +1,117 @@
 import os.path
-import bcrypt
-import string
-import random
+from flask import Flask, send_from_directory, request, make_response
 from pymongo import MongoClient
-from flask import Flask, render_template, send_from_directory, request, make_response
+import json
+import bcrypt
+import hashlib
+import secrets
+from bson.objectid import ObjectId
+
 
 app = Flask(__name__)
+mongo_client = MongoClient('mongo')
+db = mongo_client["didhouse"]
+users = db["users"]
+auth_tokens = db["auth_tokens"]
+posts = db["posts"]
+likes = db["post_like"]
 
-mongo_client = MongoClient("mongo")
-db = mongo_client["CSE312_Project"]
-post_collection = db["Posts"]
 
-def escaped(input:str):
-    message = input.replace('&', "&amp;")
-    message = message.replace('<', "&lt;")
-    message = message.replace('>', "&gt;")
-    message = message.replace('"', "&quot;")
-    message = message.replace("'", "&#39;")
-    return message
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/')
-def home():
-    if 'token' in request.cookies and post_collection.find_one({"token": hash(request.cookies['token'])}):
-        user = post_collection.find_one({"token": hash(request.cookies['token'])})['username']
-        user = escaped(user)
-        response = make_response(render_template("home.html", welcome = f"Welcomeback to React Post App, {user}"), 200)
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    print(data['username'])
+    print(data['email'])
+    print(data['password'])
+    username = data['username']
+    email = data['email']
+    password = data['password']
+    if users.find_one({'username': username}):
+        return json.dumps({"message": "Username is registered"}), 200
+    if users.find_one({'email': email}):
+        return json.dumps({"message": "Email is registered"}), 200
+    hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    users.insert_one({"username": username, "email": email, "password": hashed_pw})
+    return json.dumps({"message": "Successfully registered"}), 200
+
+
+@app.route('/dashboard-post/<string:user>', methods=['POST'])
+def post(user):
+    post_data = request.get_json()
+    title = post_data['title']
+    description = post_data['description']
+    posts.insert_one({'user': user, "title": title, "description": description, "likes": 0})
+    return json.dumps({"message": "Successfully Posted"}), 200
+
+
+@app.route('/setLike/<string:user>/<string:postid>', methods=['POST'])
+def like(user, postid):
+    if user != "null":
+        likes.insert_one({'user': user, 'post_id': postid})
+        posts.update_one({'_id': ObjectId(postid)}, {"$inc": {"likes": 1}})
+        return json.dumps({}), 200
     else:
-        response = make_response(render_template("home.html", welcome = "Welcome to React Post App" ), 200)
-    response.headers = {'content-type': 'text/html; charset=UTF-8', 'x-content-type-options': 'nosniff'}
-    if post_collection.find_one({'counter': {'$exists': True}})==None:
-        post_collection.insert_one({'counter': 0})
-    return response
+        return json.dumps({"message": "Please log in first"}), 200
+
+
+@app.route('/setDislike/<string:user>/<string:postid>', methods=['POST'])
+def dislike(user, postid):
+    likes.delete_one({'user': user, 'post_id': postid})
+    posts.update_one({'_id': ObjectId(postid)}, {"$inc": {"likes": -1}})
+    return json.dumps({}), 200
+
+
+@app.route('/posts-his/<string:user>', methods=['GET'])
+def posts_his(user):
+    post_in_db = list(posts.find({}))
+    if post_in_db:
+        for i in post_in_db:
+            i['_id'] = str(i['_id'])
+            if user != "null":
+                if likes.find_one({'user': user, 'post_id': i['_id']}):
+                    i['liked'] = 1
+                else:
+                    i['liked'] = 0
+    return json.dumps({"posts": post_in_db}), 200
+
+
+@app.route('/auth-check', methods=['GET'])
+def auth_check():
+    auth_token = request.cookies.get("auth_token", None)
+    if auth_token:
+        hashed_token = hashlib.sha256(auth_token.encode()).hexdigest()
+        if auth_tokens.find_one({'auth_token': hashed_token}):
+            return json.dumps({"username": auth_tokens.find_one({'auth_token': hashed_token})['username']}), 200
+        else:
+            return json.dumps({"message": "You have not logged in yet, you are welcome to log in or register"}), 200
+    else:
+        return json.dumps({"message": "You have not logged in yet, you are welcome to log in or register"}), 200
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data['username']
+    password = data['password']
+    if not users.find_one({'username': username}):
+        return json.dumps({"message": "User not found please register first"}), 200
+    else:
+        hashed_pw = users.find_one({'username': username})['password']
+        if bcrypt.checkpw(password.encode(), hashed_pw):
+            auth_token = secrets.token_hex(20)
+            hashed_token = hashlib.sha256(auth_token.encode()).hexdigest()
+            auth_tokens.insert_one({'username': username, 'auth_token': hashed_token})
+            resp = make_response(json.dumps({"message": "Successfully logged in"}), 200)
+            resp.set_cookie("auth_token", auth_token, httponly=True)
+            return resp
+        else:
+            return json.dumps({"message": "Username and password are not matched please try again"}), 200
 
 
 @app.route("/static/js/<path:path>")
@@ -38,7 +119,8 @@ def js(path):
     if os.path.exists(app.static_folder + "/static/js/" + path):
         resp = send_from_directory(app.static_folder + "/static/js/", path)
         response = make_response(resp, 200)
-        response.headers = {'content-type': 'application/javascript; charset=UTF-8', 'x-content-type-options': 'nosniff'}
+        response.headers = {'content-type': 'application/javascript; charset=UTF-8',
+                            'x-content-type-options': 'nosniff'}
         return response
 
 
@@ -60,12 +142,6 @@ def media(path):
         return response
 
 
-@app.route("/<path:path>")
-def paths(path):
-    if os.path.exists(app.static_folder + "/" + path):
-        return send_from_directory(app.static_folder + "/", path)
-
-
 @app.route("/visit-counter")
 def count():
     visit = int(request.cookies.get('visited', "0"))
@@ -74,46 +150,6 @@ def count():
     response.set_cookie('visited', str(visit), max_age=3600)
 
     return response
-
-@app.route('/register', methods = ['POST'])
-def registration():
-    username = request.form['username_reg']
-    password = request.form['password_reg']
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    post_collection.insert_one({'username': username, 'hashed': hashed})
-    response = make_response(render_template("response.html", response_message = "User Register"), 200)
-    response.headers = {'content-type': 'text/html; charset=UTF-8', 'x-content-type-options': 'nosniff'}
-    return response
-
-@app.route('/login', methods = ['POST'])
-def login():
-    username = request.form['username_login']
-    password = request.form['password_login']
-    cookie_flage = True
-    if post_collection.find_one({"username": username}):
-        user = post_collection.find_one({"username": username})
-        hashed = user['hashed']
-        if bcrypt.checkpw(password.encode('utf-8'), hashed):
-            token = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
-            hashedtoken = hash(token)
-            post_collection.update_one({"username": username}, {"$set": {"token": hashedtoken}})
-            response = make_response(render_template("response.html", response_message = "User Login"), 200)
-            response.set_cookie('token',token, max_age=3600,httponly=True)
-            response.headers['x-content-type-options'] = 'nosniff'
-            cookie_flage = False
-        else:
-            response = make_response(render_template("response.html", response_message = "login Error"), 200)        
-    else:
-        response = make_response(render_template("response.html", response_message = "login Error"), 200)        
-    
-
-    if cookie_flage:
-        response.headers = {'content-type': 'text/html; charset=UTF-8', 'x-content-type-options': 'nosniff'}
-    
-    return response                   
-    
-
 
 
 if __name__ == '__main__':
