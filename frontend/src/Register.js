@@ -18,12 +18,15 @@ const Register = () => {
                     setMessageType("success")
                     setTimeout(() => {
                         window.location.replace("/login")
-                    }, 2000)
+                    }, 1000)
                 }
             })
             .catch(function (error) {
             })
     };
+    const toLogin = () => {
+        window.location.replace('/login')
+    }
     return (
         <>
             <Title level={2}>Register</Title>
@@ -122,6 +125,9 @@ const Register = () => {
                     </Button>
                 </Form.Item>
             </Form>
+            <Button type="primary" onClick={toLogin}>
+                Login
+            </Button>
         </>
     );
 };

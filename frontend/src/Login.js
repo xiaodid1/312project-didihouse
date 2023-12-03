@@ -17,18 +17,21 @@ const Login = () => {
                     if (response.data.message === "User not found please register first") {
                         setTimeout( () => {
                             window.location.replace("/register")
-                        }, 2000)
+                        }, 1000)
                     }
                 } else {
                     setMessageType("success")
                     setTimeout( () => {
-                        window.location.replace("/dashboard")
-                    }, 2000)
+                        window.location.replace("/auction-board")
+                    }, 1000)
                 }
             })
             .catch(function (error) {
             })
     };
+    const toRegister = () => {
+        window.location.replace('/register')
+    }
     return (
         <>
             <Title level={2}>Login</Title>
@@ -87,6 +90,9 @@ const Login = () => {
                     </Button>
                 </Form.Item>
             </Form>
+            <Button type="primary" onClick={toRegister}>
+                Register
+            </Button>
         </>
     );
 };
