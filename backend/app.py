@@ -210,7 +210,7 @@ def show():
 
 
 @app.route('/email_verify', methods=['GET'])
-def verify():
+def verify_email():
     hashtoken = request.args.get('t')
     name = request.args.get('u')
     verify.find_one({'username': name})
@@ -247,7 +247,7 @@ def register():
     message = f'PLease click this link to verify your email address: http://auction404notfound.com/email_verify?t='
     message += hashed
     message += f'&u=' + username
-    with smtplib.SMTP(EMAIL, 587) as sender:
+    with smtplib.SMTP('smtp.gmail.com', 587) as sender:
         sender.starttls()
         sender.login(EMAIL, EMAIL_P)
         sender.sendmail(EMAIL, email, message)
