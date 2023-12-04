@@ -1,5 +1,8 @@
 # 312project [Team: 404 Not Found]
 
+Deployed Url: http://auction404notfound.com or https://auction404notfound.com
+
+
 ## Pages/Paths:
 */*: **http://localhost:8080/**
 
