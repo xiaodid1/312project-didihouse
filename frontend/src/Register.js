@@ -12,7 +12,7 @@ const Register = () => {
             values)
             .then(function (response) {
                 setMessage(response.data.message)
-                if (response.data.message !== "Successfully registered") {
+                if (response.data.message !== "Successfully registered, verification email send") {
                     setMessageType("error")
                 } else {
                     setMessageType("success")
