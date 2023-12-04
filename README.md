@@ -23,6 +23,9 @@ Deployed Url: **http://auction404notfound.com** or **https://auction404notfound.
 Sometime page will not be load corretlly if your laptop or pc is slow or having too many tasks on, please give it a few seconds to load
 ***
 
+## All pages are deployed websocket, any auction changes will show in real time
+
+
 You will see two buttons `Login` and `Register` in */* page, each button will navigate you to direct page
 
 Nagivating to any of the above page (other than login and register) with out logging in will be redirected to login page
@@ -33,7 +36,5 @@ Nagivating to any of the above page (other than login and register) with out log
  - Duration time are only allow integers , max 360 min 1 (in seconds)
 
 **Auction Room**
- = Owner not allow to place bid
+ - Owner not allow to place bid
  - Only allow to place bit when auction is ongoing and bid is highest than previous bit , max 100000 , only allow 2 decimals
-
-All pages are deployed websocket, any auction changes will show in real time
