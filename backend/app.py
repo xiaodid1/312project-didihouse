@@ -8,6 +8,8 @@ import secrets
 from flask_socketio import SocketIO
 from config import EMAIL, EMAIL_P
 from bson.objectid import ObjectId
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import smtplib
 
 app = Flask(__name__)
@@ -244,13 +246,18 @@ def register():
     verify_token = secrets.token_hex(20)
     hashed = hashlib.sha256(verify_token.encode()).hexdigest()
     verify.insert_one({'username': username, 'verify_token': hashed, 'status': 'No'})
-    message = f'PLease click this link to verify your email address: http://auction404notfound.com/email_verify?t='
+    message = 'PLease click this link to verify your email address: http://auction404notfound.com/email_verify?t='
     message += hashed
-    message += f'&u=' + username
+    message += '&u=' + username
+    msg = MIMEMultipart()
+    msg['From'] = email
+    msg['To'] = email
+    msg['Subject'] = 'Verify Your Email Address'
+    msg.attach(MIMEText(message, 'plain'))
     with smtplib.SMTP('smtp.gmail.com', 587) as sender:
         sender.starttls()
         sender.login(EMAIL, EMAIL_P)
-        sender.sendmail(EMAIL, email, message)
+        sender.sendmail(EMAIL, email, msg.as_string())
     return json.dumps({"message": "Successfully registered, verification email send"}), 200
 
 
