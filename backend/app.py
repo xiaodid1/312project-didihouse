@@ -6,8 +6,9 @@ import bcrypt
 import hashlib
 import secrets
 from flask_socketio import SocketIO
-
+from config import EMAIL, EMAIL_P
 from bson.objectid import ObjectId
+import smtplib
 
 app = Flask(__name__)
 mongo_client = MongoClient('mongo')
@@ -15,8 +16,9 @@ db = mongo_client["didhouse"]
 users = db["users"]
 auth_tokens = db["auth_tokens"]
 auctions = db["auction"]
+verify = db["verify"]
 app.config['SECRET_KEY'] = '404NotFound'
-socketIo = SocketIO(app)
+socketIo = SocketIO(app, cors_allowed_origins='https://auction404notfound.com')
 password1 = 'xdd'
 password2 = 'xxx'
 password3 = 'x'
@@ -181,7 +183,7 @@ def creat_auction():
                 image_path = '/static/media/' + username + '_' + str(new_auction.inserted_id) + '.jpg'
                 with open(app.static_folder + image_path, "wb") as file:
                     file.write(image_data)
-                auctions.update_one({'_id': new_auction.inserted_id}, {'$set': {'image_file': image_path}})
+            auctions.update_one({'_id': new_auction.inserted_id}, {'$set': {'image_file': image_path}})
             socketIo.emit('new_auction_created', {'auction_id': str(new_auction.inserted_id),
                                                   'username': username,
                                                   'image_file': image_path,
@@ -207,6 +209,23 @@ def show():
     return response
 
 
+@app.route('/email_verify', methods=['GET'])
+def verify():
+    hashtoken = request.args.get('t')
+    name = request.args.get('u')
+    verify.find_one({'username': name})
+    if verify:
+        token = verify['verify_token']
+        hashed = hashlib.sha256(token.encode()).hexdigest()
+        if hashtoken == hashed:
+            verify.update_one({'username': name}, {'$set': {'status': 'Yes'}})
+            return 'Email Verified Successfully', 200
+        else:
+            return 'Invalid Token', 304
+    else:
+        return 'Not Such User', 304
+
+
 @app.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -222,7 +241,17 @@ def register():
         return json.dumps({"message": "Email is registered"}), 200
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
     users.insert_one({"username": username, "email": email, "password": hashed_pw})
-    return json.dumps({"message": "Successfully registered"}), 200
+    verify_token = secrets.token_hex(20)
+    hashed = hashlib.sha256(verify_token.encode()).hexdigest()
+    verify.insert_one({'username': username, 'verify_token': hashed, 'status': 'No'})
+    message = f'PLease click this link to verify your email address: http://auction404notfound.com/email_verify?t='
+    message += hashed
+    message += f'&u=' + username
+    with smtplib.SMTP(EMAIL, 587) as sender:
+        sender.starttls()
+        sender.login(EMAIL, EMAIL_P)
+        sender.sendmail(EMAIL, email, message)
+    return json.dumps({"message": "Successfully registered, verification email send"}), 200
 
 
 @app.route('/auth-check', methods=['GET'])
@@ -230,8 +259,10 @@ def auth_check():
     auth_token = request.cookies.get("auth_token", None)
     if auth_token:
         hashed_token = hashlib.sha256(auth_token.encode()).hexdigest()
-        if auth_tokens.find_one({'auth_token': hashed_token}):
-            return json.dumps({"username": auth_tokens.find_one({'auth_token': hashed_token})['username']}), 200
+        auth = auth_tokens.find_one({'auth_token': hashed_token})
+        if auth:
+            ver = verify.find_one({'username': auth['username']})
+            return json.dumps({"username": auth['username'], 'verif': ver['status']}), 200
         else:
             return json.dumps({"message": "You have not logged in yet, you are welcome to log in or register"}), 200
     else:
