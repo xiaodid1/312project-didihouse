@@ -57,6 +57,7 @@ const columns = [
 ]
 const AuctionBoard = () => {
     const [user, setUser] = useState(null);
+    const [verify, setVerify] = useState(null);
     const [message, setMessage] = useState(null);
     const [messageType, setType] = useState("warning");
     const [data, setData] = useState(null)
@@ -66,6 +67,7 @@ const AuctionBoard = () => {
                 .then(response => {
                     if (response.data.username) {
                         setUser(response.data.username);
+                        setVerify(response.data.verif);
                     }
                     if (response.data.message) {
                         setType("warning");
@@ -164,6 +166,7 @@ const AuctionBoard = () => {
     return (
         <>
             <Avatar icon={<UserOutlined />} onClick={toProfile}/>
+            <span>Email Verification: {verify}</span>
             <br />
             <Button type="primary" onClick={toCreate}>
                 Create Auction
