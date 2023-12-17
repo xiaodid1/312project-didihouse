@@ -21,15 +21,15 @@ auctions = db["auction"]
 verify = db["verify"]
 app.config['SECRET_KEY'] = '404NotFound'
 socketIo = SocketIO(app, cors_allowed_origins='https://auction404notfound.com')
-password1 = 'xdd'
-password2 = 'xxx'
-password3 = 'x'
-hashed_pw1 = bcrypt.hashpw(password1.encode(), bcrypt.gensalt())
-hashed_pw2 = bcrypt.hashpw(password2.encode(), bcrypt.gensalt())
-hashed_pw3 = bcrypt.hashpw(password3.encode(), bcrypt.gensalt())
-users.insert_one({"username": 'xdd', "email": 'xdd@gmail.com', "password": hashed_pw1})
-users.insert_one({"username": 'xxx', "email": 'xxx@gmail.com', "password": hashed_pw2})
-users.insert_one({"username": 'x', "email": 'x@gmail.com', "password": hashed_pw3})
+#password1 = 'xdd'
+#password2 = 'xxx'
+#password3 = 'x'
+#hashed_pw1 = bcrypt.hashpw(password1.encode(), bcrypt.gensalt())
+#hashed_pw2 = bcrypt.hashpw(password2.encode(), bcrypt.gensalt())
+#hashed_pw3 = bcrypt.hashpw(password3.encode(), bcrypt.gensalt())
+#users.insert_one({"username": 'xdd', "email": 'xdd@gmail.com', "password": hashed_pw1})
+#users.insert_one({"username": 'xxx', "email": 'xxx@gmail.com', "password": hashed_pw2})
+#users.insert_one({"username": 'x', "email": 'x@gmail.com', "password": hashed_pw3})
 
 # posts = db["posts"]
 # likes = db["post_like"]
@@ -215,11 +215,11 @@ def show():
 def verify_email():
     hashtoken = request.args.get('t')
     name = request.args.get('u')
-    verify.find_one({'username': name})
-    if verify:
-        token = verify['verify_token']
-        hashed = hashlib.sha256(token.encode()).hexdigest()
-        if hashtoken == hashed:
+    user = verify.find_one({'username': name})
+    if user:
+        token = user['verify_token']
+        #hashed = hashlib.sha256(token.encode()).hexdigest()
+        if hashtoken == token:
             verify.update_one({'username': name}, {'$set': {'status': 'Yes'}})
             return 'Email Verified Successfully', 200
         else:
